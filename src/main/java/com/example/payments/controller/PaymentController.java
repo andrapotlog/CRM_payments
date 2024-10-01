@@ -7,7 +7,9 @@ import com.example.payments.service.PaymentService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,15 +40,15 @@ public class PaymentController {
 
             Claims claims = Jwts.parser().setSigningKey(jwtConfig.getSecretKey()).parseClaimsJws(token).getBody();
             Long userId = claims.get("userId", Long.class);
+            List<String> userRoles = claims.get("roles", List.class);
 
-            if(userId == null) throw new RuntimeException("Invalid user");
+            if(userId == null) return new ResponseEntity<>("Invalid user", HttpStatus.BAD_REQUEST);
+            if(userRoles == null) return new ResponseEntity<>("Invalid roles", HttpStatus.BAD_REQUEST);
 
-            List<Payment> payments = paymentService.listAllPayments(userId);
+            List<Payment> payments = paymentService.listAllPayments(userRoles.contains("ROLE_USER"),userId);
             return new ResponseEntity<>(payments, HttpStatus.OK);
         } catch (RuntimeException exception) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Unauthorized");
+            return new ResponseEntity<>("Unauthorized", HttpStatus.UNAUTHORIZED);
 
         }
     }
@@ -64,10 +66,21 @@ public class PaymentController {
             Payment payment = paymentService.findPayment(id);
             return ResponseEntity.ok(payment);
         } catch (RuntimeException exception) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Unauthorized");
+            return new ResponseEntity<>("Unauthorized", HttpStatus.UNAUTHORIZED);
 
+        }
+    }
+
+    @GetMapping("/invoice/{invoiceId}")
+    public ResponseEntity<byte[]> getInvoicePdf(@PathVariable String invoiceId) {
+        byte[] pdf = paymentService.getInvoicePdf(invoiceId);
+        if (pdf != null) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("inline", "invoice.pdf");
+            return ResponseEntity.ok().headers(headers).body(pdf);
+        } else {
+            return ResponseEntity.status(404).body(null);
         }
     }
 
@@ -86,7 +99,6 @@ public class PaymentController {
                 payment.setInvoiceId("ABC123456");
                 payment.setCardType("VISA");
                 paymentService.addPayment(payment);
-                System.out.println("here");
                 return new ResponseEntity<>(HttpStatus.CREATED);
             }
             catch (RuntimeException exception) {
@@ -97,10 +109,7 @@ public class PaymentController {
                 throw new RuntimeException(e);
             }
         } catch (RuntimeException exception) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Unauthorized");
-
+            return new ResponseEntity<>("Unauthorized", HttpStatus.UNAUTHORIZED);
         }
     }
 }

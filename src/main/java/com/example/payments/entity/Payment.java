@@ -30,7 +30,7 @@ public class Payment {
     private String description;
 
     @Column(name="date_and_time")
-    private LocalDateTime dateAndTime = LocalDateTime.now();;
+    private LocalDateTime dateAndTime = LocalDateTime.now();
 
     @Column(name="card_number")
     private String cardNumber;
@@ -43,6 +43,7 @@ public class Payment {
 
     @Column(name="invoice_id")
     private String invoiceId;
+
     @Column(name="payer_user_id")
     private Long payerUserId;
 }
